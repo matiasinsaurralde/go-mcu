@@ -9,7 +9,7 @@ One of the goals is to take advantage of [Go's cross compilation capability](htt
 import(
 	"fmt"
 
-	nodemcu "github.com/matiasinsaurralde/go-mcu"
+	nodemcu "github.com/matiasinsaurralde/go-mcu/nodemcu"
 )
 func main() {
 	node, err := nodemcu.NewNodeMCU("/dev/cu.usbserial-1410", 115200)
