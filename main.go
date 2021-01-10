@@ -30,6 +30,13 @@ func main() {
 		panic(err)
 	}
 
+	// GPIO module
+	node.GPIO.Mode(4, nodemcu.GPIO_OUTPUT)
+	time.Sleep(1 * time.Second)
+	node.GPIO.Mode(4, nodemcu.GPIO_HIGH)
+	time.Sleep(1 * time.Second)
+	node.GPIO.Mode(4, nodemcu.GPIO_LOW)
+
 	// Upload a file
 	err = node.SendFile("test.lua")
 	if err != nil {

@@ -32,6 +32,8 @@ type NodeMCU struct {
 	port   *serial.Port
 	logger *log.Logger
 	ackBuf []byte
+
+	GPIO *GPIOModule
 }
 
 // File wraps FS ops
@@ -316,6 +318,18 @@ func (n *NodeMCU) Restart() error {
 	return nil
 }
 
+// Compile calls node.compile()
+func (n *NodeMCU) Compile(filename string) error {
+	s := fmt.Sprintf("compile(\"%s\")\r\n", filename)
+	n.logger.Printf("Compile is called: %s\n", s)
+	err := n.WriteString(s)
+	if err != nil {
+		return err
+	}
+	_, err = n.ReadStrings()
+	return err
+}
+
 // SetLogger sets the logger
 func (n *NodeMCU) SetLogger(l *log.Logger) {
 	n.logger = l
@@ -328,6 +342,9 @@ func NewNodeMCU(port string, baudRate int) (node *NodeMCU, err error) {
 		cfg:    &serial.Config{Name: port, Baud: baudRate},
 		logger: log.New(ioutil.Discard, "", log.LstdFlags),
 	}
+
+	// Enable GPIO module:
+	node.GPIO = &GPIOModule{node: node}
 	node.port, err = serial.OpenPort(node.cfg)
 	return
 }
