@@ -16,10 +16,6 @@ import (
 	"github.com/tarm/serial"
 )
 
-const (
-	defaultBaudRate = 115200
-)
-
 var (
 	errUnexpectedData = errors.New("Unexpected data")
 	errACKFail        = errors.New("ACK failure")

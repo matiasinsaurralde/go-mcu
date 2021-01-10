@@ -1,79 +1,114 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
-	"time"
 
 	nodemcu "github.com/matiasinsaurralde/go-mcu/nodemcu"
+	"github.com/urfave/cli/v2"
 )
 
 const (
-	logPrefix = "go-mcu "
+	logPrefix       = "go-mcu "
+	defaultBaudRate = 115200
 )
 
-func main() {
-	// Setup the port
-	node, err := nodemcu.NewNodeMCU("/dev/cu.usbserial-1410", 115200)
-	if err != nil {
-		panic(err)
-	}
+var (
+	portDevice string
+	baudRate   int
+)
 
-	// Set a custom logger
+func initNode() (*nodemcu.NodeMCU, error) {
+	node, err := nodemcu.NewNodeMCU(portDevice, baudRate)
+	if err != nil {
+		return nil, err
+	}
 	l := log.New(os.Stdout, logPrefix, log.LstdFlags)
 	node.SetLogger(l)
-
-	// Initialization
 	err = node.Sync()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
+	return node, err
+}
 
-	// GPIO module
-	node.GPIO.Mode(4, nodemcu.GPIO_OUTPUT)
-	time.Sleep(1 * time.Second)
-	node.GPIO.Mode(4, nodemcu.GPIO_HIGH)
-	time.Sleep(1 * time.Second)
-	node.GPIO.Mode(4, nodemcu.GPIO_LOW)
-
-	// Upload a file
-	err = node.SendFile("test.lua")
+func main() {
+	app := &cli.App{
+		Name:  "go-mcu",
+		Usage: "NodeMCU tool (in Golang)",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:        "port",
+				Usage:       "Serial port device",
+				Destination: &portDevice,
+				Required:    true,
+			},
+			&cli.IntFlag{
+				Name:        "baud",
+				Usage:       "Baud rate",
+				Destination: &baudRate,
+				Required:    true,
+				Value:       defaultBaudRate,
+			},
+		},
+		Commands: []*cli.Command{
+			{
+				Name:  "hwinfo",
+				Usage: "retrieves hardware info",
+				Action: func(c *cli.Context) error {
+					node, err := initNode()
+					if err != nil {
+						return err
+					}
+					hwInfo, err := node.HardwareInfo()
+					if err != nil {
+						return err
+					}
+					hwInfoJSON, err := json.Marshal(hwInfo)
+					if err != nil {
+						return err
+					}
+					fmt.Println(string(hwInfoJSON))
+					return nil
+				},
+			},
+			{
+				Name:  "upload",
+				Usage: "upload a file",
+				Action: func(c *cli.Context) error {
+					node, err := initNode()
+					if err != nil {
+						return err
+					}
+					filename := c.Args().First()
+					err = node.SendFile(filename)
+					if err != nil {
+						return err
+					}
+					return nil
+				},
+			},
+			{
+				Name:  "restart",
+				Usage: "trigger node restart",
+				Action: func(c *cli.Context) error {
+					node, err := initNode()
+					if err != nil {
+						return err
+					}
+					err = node.Restart()
+					if err != nil {
+						return err
+					}
+					return nil
+				},
+			},
+		},
+	}
+	err := app.Run(os.Args)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
-
-	// List files
-	files, err := node.ListFiles()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("Found %d files\n", len(files))
-	for i, file := range files {
-		fmt.Printf("File #%d, '%s' (%d bytes)\n", i, file.Name, file.Size)
-		if file.Name == "test.lua" {
-			file.Remove()
-		}
-		if file.Name == "blink.lua" {
-			file.Run()
-		}
-	}
-
-	// Invoke a file
-	err = node.Run("blink.lua")
-	if err != nil {
-		panic(err)
-	}
-
-	// Retrieve hardware info
-	hwInfo, err := node.HardwareInfo()
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(hwInfo)
-
-	time.Sleep(5 * time.Second)
-
-	// Node restart
-	node.Restart()
 }
