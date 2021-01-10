@@ -5,6 +5,39 @@ go-mcu
 
 One of the goals is to take advantage of [Go's cross compilation capability](https://dave.cheney.net/tag/cross-compilation) while keeping a minimal set of runtime dependencies.
 
+## Getting started
+
+To download the package use:
+
+```
+go get -u github.com/matiasinsaurralde/go-mcu
+```
+
+The CLI tool should be available afterwards:
+
+```
+$ go-mcu
+NAME:
+   go-mcu - NodeMCU tool (in Golang)
+
+USAGE:
+   go-mcu [global options] command [command options] [arguments...]
+
+COMMANDS:
+   hwinfo   retrieves hardware info
+   upload   upload a file
+   restart  trigger node restart
+   help, h  Shows a list of commands or help for one command
+
+GLOBAL OPTIONS:
+   --port value  Serial port device
+   --baud value  Baud rate (default: 115200)
+   --help, -h    show help (default: false)
+
+```
+
+## Sample code
+
 ```go
 package main
 
@@ -67,3 +100,19 @@ func main() {
 	fmt.Println(hwInfo)
 }
 ```
+
+## Additional features
+
+### GPIO module
+
+```go
+	node.GPIO.Mode(4, nodemcu.GPIO_OUTPUT)
+	time.Sleep(1 * time.Second)
+	node.GPIO.Mode(4, nodemcu.GPIO_HIGH)
+	time.Sleep(1 * time.Second)
+	node.GPIO.Mode(4, nodemcu.GPIO_LOW)
+```
+
+## License
+
+[MIT](README.md)
