@@ -36,12 +36,10 @@ func main() {
 	}
 
 	// List files
-	fmt.Println("list files")
 	files, err := node.ListFiles()
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("after list")
 	fmt.Printf("Found %d files\n", len(files))
 	for i, file := range files {
 		fmt.Printf("File #%d, '%s' (%d bytes)\n", i, file.Name, file.Size)
