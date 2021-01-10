@@ -87,10 +87,10 @@ func (n *NodeMCU) parseTab(input []string, intValue bool) (map[string]interface{
 }
 
 // Sync runs test code
+// TODO: add timeout handler
 func (n *NodeMCU) Sync() error {
-	// defer n.port.Flush()
-	var ready bool
-	for !ready {
+	for {
+		fmt.Println("iter")
 		if err := n.WriteString("print(1024*2);\r\n"); err != nil {
 			return err
 		}
@@ -105,11 +105,10 @@ func (n *NodeMCU) Sync() error {
 			ln = strings.TrimSpace(ln)
 			i, _ := strconv.Atoi(ln)
 			if i == 2048 {
-				ready = true
+				return nil
 			}
 		}
 	}
-	return nil
 }
 
 // ListFiles returns a list of NodeMCUFile, including file size
