@@ -2,10 +2,16 @@ package nodemcu
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"log"
+	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/tarm/serial"
 )
@@ -16,12 +22,16 @@ const (
 
 var (
 	errUnexpectedData = errors.New("Unexpected data")
+	errACKFail        = errors.New("ACK failure")
+	errNotReady       = errors.New("Device isn't ready to receive data")
 )
 
 // NodeMCU is the main data structure
 type NodeMCU struct {
-	cfg  *serial.Config
-	port *serial.Port
+	cfg    *serial.Config
+	port   *serial.Port
+	logger *log.Logger
+	ackBuf []byte
 }
 
 // File wraps FS ops.
@@ -88,6 +98,7 @@ func (n *NodeMCU) parseTab(input []string, intValue bool) (map[string]interface{
 // Sync runs test code
 // TODO: add timeout handler
 func (n *NodeMCU) Sync() error {
+	n.logger.Println("Sync is called")
 	for {
 		if err := n.WriteString("print(1024*2);\r\n"); err != nil {
 			return err
@@ -100,9 +111,8 @@ func (n *NodeMCU) Sync() error {
 			return errUnexpectedData
 		}
 		for _, ln := range output {
-			ln = strings.TrimSpace(ln)
-			i, _ := strconv.Atoi(ln)
-			if i == 2048 {
+			if strings.Contains(ln, "2048") {
+				n.logger.Println("Sync ok")
 				return nil
 			}
 		}
@@ -111,8 +121,9 @@ func (n *NodeMCU) Sync() error {
 
 // ListFiles returns a list of NodeMCUFile, including file size
 func (n *NodeMCU) ListFiles() ([]File, error) {
+	n.logger.Println("ListFiles is called")
 	files := make([]File, 0)
-	n.WriteString("for key,value in pairs(file.list()) do print(key,\"|\",value) end\r\n")
+	n.WriteString(listFilesCode)
 	output, err := n.ReadStrings()
 	if err != nil {
 		return nil, err
@@ -128,6 +139,7 @@ func (n *NodeMCU) ListFiles() ([]File, error) {
 		f := File{Name: name, Size: sz}
 		files = append(files, f)
 	}
+	n.logger.Printf("Found %d files\n", len(files))
 	return files, nil
 }
 
@@ -135,6 +147,7 @@ func (n *NodeMCU) ListFiles() ([]File, error) {
 // TODO: capture output
 func (n *NodeMCU) Run(filename string) error {
 	s := fmt.Sprintf("dofile(\"%s\")\r\n", filename)
+	n.logger.Printf("Run is called: %s\n", s)
 	err := n.WriteString(s)
 	if err != nil {
 		return err
@@ -145,7 +158,8 @@ func (n *NodeMCU) Run(filename string) error {
 
 // HardwareInfo gets HW info
 func (n *NodeMCU) HardwareInfo() (*HardwareInfo, error) {
-	n.WriteString("for key,value in pairs(node.info('hw')) do k=tostring(key) print(k, '|', tostring(value)) end\r\n")
+	n.logger.Println("HardwareInfo is called")
+	n.WriteString(hardwareInfoCode)
 	output, err := n.ReadStrings()
 	if err != nil {
 		return nil, err
@@ -173,10 +187,116 @@ func (n *NodeMCU) HardwareInfo() (*HardwareInfo, error) {
 	return hwInfo, nil
 }
 
+// ReadACK checks the ACK reply
+func (n *NodeMCU) ReadACK() error {
+	if n.ackBuf == nil {
+		n.ackBuf = make([]byte, 1)
+	}
+	readBytes, err := n.port.Read(n.ackBuf)
+	if err != nil {
+		return err
+	}
+	if readBytes == 0 || err != nil {
+		return errACKFail
+	}
+	if n.ackBuf[0] != 0x06 {
+		return errACKFail
+	}
+	n.logger.Println("ACK ok")
+	return nil
+}
+
+// ReadyToRecv checks if the node is ready to receive data
+func (n *NodeMCU) ReadyToRecv() bool {
+	n.logger.Println("ReadyToRecv is called")
+	signalBuf := make([]byte, 64)
+	signalReadBytes, err := n.port.Read(signalBuf)
+	if err != nil || signalReadBytes == 0 {
+		return false
+	}
+	return bytes.ContainsRune(signalBuf, 'C')
+}
+
+// SendFile uploads a file to the device
+func (n *NodeMCU) SendFile(inputFile string) error {
+	n.logger.Println("SendFile is called")
+	startTime := time.Now()
+	file, err := os.Open(inputFile)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	n.logger.Printf("File opened '%s'\n", inputFile)
+
+	n.logger.Println("SendFile is called, loading recv code")
+	n.WriteString(recvCode)
+	n.port.Flush()
+	time.Sleep(1 * time.Second)
+	n.logger.Println("Calling recv()")
+	n.WriteString("recv()\r\n")
+	n.port.Flush()
+	time.Sleep(1 * time.Second)
+
+	if !n.ReadyToRecv() {
+		return errNotReady
+	}
+	n.logger.Println("Device is ready to receive data")
+
+	filename := []byte(inputFile)
+	filename = append(filename, 0)
+	n.logger.Println("Passing filename to recv()")
+	n.port.Write(filename)
+	n.port.Flush()
+
+	err = n.ReadACK()
+	if err != nil {
+		return err
+	}
+
+	reader := bufio.NewReader(file)
+	readBytes := 0
+	noChunks := 1
+	n.logger.Println("Starting to write file data")
+	var buf []byte
+	for {
+		buf = make([]byte, 128)
+		l, err := reader.Read(buf[:cap(buf)])
+		data := []byte{0x1, byte(l)}
+		data = append(data, buf...)
+		n.port.Write(data)
+		n.port.Flush()
+		err = n.ReadACK()
+		if err != nil {
+			panic(err)
+		}
+		n.logger.Printf("Sending chunk %d, initial size is %d bytes\n", noChunks, len(data))
+		buf = buf[:l]
+		if l == 0 {
+			break
+		}
+		noChunks++
+		readBytes += len(data)
+		if err != nil && err != io.EOF {
+			log.Fatal(err)
+		}
+	}
+	diff := time.Since(startTime)
+	n.logger.Printf("SendFile finished, took %d milliseconds, %d chunks sent, total bytes %d\n",
+		int64(diff.Milliseconds()), noChunks, readBytes)
+	return nil
+}
+
+// SetLogger sets the logger
+func (n *NodeMCU) SetLogger(l *log.Logger) {
+	n.logger = l
+}
+
 // NewNodeMCU creates a new NodeMCU object and initializes the serial connection
+// Logging is disabled by default
 func NewNodeMCU(port string, baudRate int) (node *NodeMCU, err error) {
 	node = &NodeMCU{
-		cfg: &serial.Config{Name: port, Baud: baudRate},
+		cfg:    &serial.Config{Name: port, Baud: baudRate},
+		logger: log.New(ioutil.Discard, "", log.LstdFlags),
 	}
 	node.port, err = serial.OpenPort(node.cfg)
 	return
