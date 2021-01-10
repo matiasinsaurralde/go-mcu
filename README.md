@@ -1,6 +1,10 @@
 go-mcu
 ==
 
+[![GoDoc](https://godoc.org/github.com/urfave/cli?status.svg)](https://godoc.org/github.com/matiasinsaurralde/go-mcu/nodemcu)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+
 `go-mcu` provides an alternative way to work with NodeMCU-based modules like the [ESP8266](https://www.espressif.com/en/products/socs/esp8266). Inspired by [NodeMCU-Tool](https://github.com/andidittrich/NodeMCU-Tool) and [nodemcu-uploader](https://github.com/kmpm/nodemcu-uploader). It can be used as a Go package but also as a standalone CLI tool.
 
 One of the goals is to take advantage of [Go's cross compilation capability](https://dave.cheney.net/tag/cross-compilation) while keeping a minimal set of runtime dependencies.
