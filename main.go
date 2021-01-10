@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	nodemcu "github.com/matiasinsaurralde/go-mcu/nodemcu"
 )
@@ -43,6 +44,12 @@ func main() {
 	fmt.Printf("Found %d files\n", len(files))
 	for i, file := range files {
 		fmt.Printf("File #%d, '%s' (%d bytes)\n", i, file.Name, file.Size)
+		if file.Name == "test.lua" {
+			file.Remove()
+		}
+		if file.Name == "blink.lua" {
+			file.Run()
+		}
 	}
 
 	// Invoke a file
@@ -57,4 +64,9 @@ func main() {
 		panic(err)
 	}
 	fmt.Println(hwInfo)
+
+	time.Sleep(5 * time.Second)
+
+	// Node restart
+	node.Restart()
 }

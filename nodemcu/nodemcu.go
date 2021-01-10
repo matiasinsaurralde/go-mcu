@@ -34,11 +34,29 @@ type NodeMCU struct {
 	ackBuf []byte
 }
 
-// File wraps FS ops.
-// TODO: implement read/write ops.
+// File wraps FS ops
 type File struct {
 	Name string
 	Size int
+
+	node *NodeMCU
+}
+
+// Remove removes a file
+func (f *File) Remove() error {
+	s := fmt.Sprintf("file.remove(\"%s\")\r\n", f.Name)
+	f.node.logger.Printf("Run is called: %s\n", s)
+	err := f.node.WriteString(s)
+	if err != nil {
+		return err
+	}
+	_, err = f.node.ReadStrings()
+	return err
+}
+
+// Run is an alias for NodeMCU.Run
+func (f *File) Run() error {
+	return f.node.Run(f.Name)
 }
 
 // HardwareInfo contains hardware info.
@@ -98,6 +116,7 @@ func (n *NodeMCU) parseTab(input []string, intValue bool) (map[string]interface{
 // Sync runs test code
 // TODO: add timeout handler
 func (n *NodeMCU) Sync() error {
+	defer n.port.Flush()
 	n.logger.Println("Sync is called")
 	for {
 		if err := n.WriteString("print(1024*2);\r\n"); err != nil {
@@ -136,7 +155,7 @@ func (n *NodeMCU) ListFiles() ([]File, error) {
 			continue
 		}
 		name := strings.TrimSpace(splits[0])
-		f := File{Name: name, Size: sz}
+		f := File{Name: name, Size: sz, node: n}
 		files = append(files, f)
 	}
 	n.logger.Printf("Found %d files\n", len(files))
@@ -283,6 +302,17 @@ func (n *NodeMCU) SendFile(inputFile string) error {
 	diff := time.Since(startTime)
 	n.logger.Printf("SendFile finished, took %d milliseconds, %d chunks sent, total bytes %d\n",
 		int64(diff.Milliseconds()), noChunks, readBytes)
+	return nil
+}
+
+// Restart calls node.restart()
+func (n *NodeMCU) Restart() error {
+	defer n.port.Flush()
+	n.logger.Println("Restart is called")
+	err := n.WriteString("node.restart()\r\n")
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
