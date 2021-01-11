@@ -110,11 +110,11 @@ func main() {
 ### GPIO module
 
 ```go
-	node.GPIO.Mode(4, nodemcu.GPIO_OUTPUT)
-	time.Sleep(1 * time.Second)
-	node.GPIO.Mode(4, nodemcu.GPIO_HIGH)
-	time.Sleep(1 * time.Second)
-	node.GPIO.Mode(4, nodemcu.GPIO_LOW)
+node.GPIO.Mode(4, nodemcu.GPIO_OUTPUT)
+time.Sleep(1 * time.Second)
+node.GPIO.Mode(4, nodemcu.GPIO_HIGH)
+time.Sleep(1 * time.Second)
+node.GPIO.Mode(4, nodemcu.GPIO_LOW)
 ```
 
 ## License
