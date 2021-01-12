@@ -30,6 +30,7 @@ USAGE:
 COMMANDS:
    hwinfo   retrieves hardware info
    upload   upload a file
+   run      invoke a script
    restart  trigger node restart
    help, h  Shows a list of commands or help for one command
 
@@ -39,6 +40,14 @@ GLOBAL OPTIONS:
    --help, -h    show help (default: false)
 
 ```
+
+Binaries are available in the [releases page](https://github.com/matiasinsaurralde/go-mcu/releases).
+
+## Supported/tested platforms
+
+- Mac
+- Windows
+- Linux
 
 ## Sample code
 
