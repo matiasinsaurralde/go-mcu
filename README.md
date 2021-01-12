@@ -51,6 +51,8 @@ Binaries are available in the [releases page](https://github.com/matiasinsaurral
 
 ## Sample code
 
+Full sample [here](https://github.com/matiasinsaurralde/go-mcu/blob/master/samples/sample.go).
+
 ```go
 package main
 
