@@ -36,7 +36,7 @@ func initNode() (*nodemcu.NodeMCU, error) {
 
 func main() {
 	app := &cli.App{
-		Name:  "go-mcu",
+		Name:  fmt.Sprintf("go-mcu %s", version),
 		Usage: "NodeMCU tool (in Golang)",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
