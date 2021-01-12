@@ -91,6 +91,22 @@ func main() {
 				},
 			},
 			{
+				Name:  "run",
+				Usage: "invoke a script",
+				Action: func(c *cli.Context) error {
+					node, err := initNode()
+					if err != nil {
+						return err
+					}
+					filename := c.Args().First()
+					err = node.Run(filename)
+					if err != nil {
+						return err
+					}
+					return nil
+				},
+			},
+			{
 				Name:  "restart",
 				Usage: "trigger node restart",
 				Action: func(c *cli.Context) error {
