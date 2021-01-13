@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -247,19 +248,19 @@ func (n *NodeMCU) SendFile(inputFile string) error {
 
 	n.logger.Println("SendFile is called, loading recv code")
 	n.WriteString(recvCode)
+	n.ReadStrings()
 	n.port.Flush()
 	time.Sleep(1 * time.Second)
 	n.logger.Println("Calling recv()")
 	n.WriteString("recv()\r\n")
 	n.port.Flush()
 	time.Sleep(1 * time.Second)
-
 	if !n.ReadyToRecv() {
 		return errNotReady
 	}
 	n.logger.Println("Device is ready to receive data")
 
-	filename := []byte(inputFile)
+	filename := []byte(filepath.Base(inputFile))
 	filename = append(filename, 0)
 	n.logger.Println("Passing filename to recv()")
 	n.port.Write(filename)
